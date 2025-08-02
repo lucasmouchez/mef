@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Baromètre de Bruit avec Alarme</title>
+  <title>Alarme de Bruit</title>
   <style>
     body {
       font-family: Arial;
@@ -32,20 +32,20 @@
   </style>
 </head>
 <body>
-  <h1>Baromètre de Bruit avec Alarme</h1>
+  <h1>Alarme de Bruit</h1>
   <div id="bar"><div id="level"></div></div>
   <div id="status">En écoute...</div>
 
-  <!-- Alarme -->
-  <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+  <!-- Gros son d'alarme -->
+  <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/fire_truck_horn.ogg"></audio>
 
   <script>
     const levelDiv = document.getElementById('level');
     const statusDiv = document.getElementById('status');
     const alarm = document.getElementById('alarm');
 
-    // Seuil pour l'alarme
-    const ALERT_THRESHOLD = 60; // % de la barre
+    const ALERT_THRESHOLD = 60; // % pour déclencher l'alarme
+    let alarmPlayed = false;
 
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
@@ -72,6 +72,7 @@
           if (percent < 30) {
             document.body.style.backgroundColor = "lightgreen";
             statusDiv.textContent = "Calme";
+            alarmPlayed = false; // Réarmement de l'alarme quand calme
           } else if (percent < ALERT_THRESHOLD) {
             document.body.style.backgroundColor = "yellow";
             statusDiv.textContent = "Bruyant";
@@ -79,14 +80,12 @@
             document.body.style.backgroundColor = "red";
             statusDiv.textContent = "⚠ Très Bruyant ⚠";
 
-            // Déclenche l'alarme
-            if (alarm.paused) alarm.play();
-          }
-
-          // Stoppe l'alarme si bruit redescend
-          if (percent < ALERT_THRESHOLD && !alarm.paused) {
-            alarm.pause();
-            alarm.currentTime = 0;
+            // Déclenche une seule fois à chaque passage au rouge
+            if (!alarmPlayed) {
+              alarmPlayed = true;
+              alarm.currentTime = 0;
+              alarm.play();
+            }
           }
 
           requestAnimationFrame(checkVolume);
