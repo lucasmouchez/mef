@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Baromètre de Bruit avec Alarme</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 50px;
+      transition: background-color 0.2s;
+    }
+    #bar {
+      width: 80%;
+      height: 50px;
+      margin: 50px auto;
+      border: 2px solid #333;
+      background: linear-gradient(to right, green 0%, yellow 50%, red 100%);
+      position: relative;
+    }
+    #level {
+      height: 100%;
+      width: 0%;
+      background-color: rgba(255,255,255,0.5);
+      transition: width 0.1s;
+    }
+    #status {
+      font-size: 2em;
+      margin-top: 30px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Baromètre de Bruit avec Alarme</h1>
+  <div id="bar"><div id="level"></div></div>
+  <div id="status">En écoute...</div>
+
+  <!-- Alarme -->
+  <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+
+  <script>
+    const levelDiv = document.getElementById('level');
+    const statusDiv = document.getElementById('status');
+    const alarm = document.getElementById('alarm');
+
+    // Seuil pour l'alarme
+    const ALERT_THRESHOLD = 60; // % de la barre
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        const audioContext = new AudioContext();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        const dataArray = new Uint8Array(analyser.fftSize = 256);
+        source.connect(analyser);
+
+        function checkVolume() {
+          analyser.getByteTimeDomainData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const value = (dataArray[i] - 128) / 128;
+            sum += value * value;
+          }
+          const volume = Math.sqrt(sum / dataArray.length);
+
+          // Normalisation volume → %
+          const percent = Math.min(volume * 500, 100);
+          levelDiv.style.width = percent + "%";
+
+          // Couleur + texte
+          if (percent < 30) {
+            document.body.style.backgroundColor = "lightgreen";
+            statusDiv.textContent = "Calme";
+          } else if (percent < ALERT_THRESHOLD) {
+            document.body.style.backgroundColor = "yellow";
+            statusDiv.textContent = "Bruyant";
+          } else {
+            document.body.style.backgroundColor = "red";
+            statusDiv.textContent = "⚠ Très Bruyant ⚠";
+
+            // Déclenche l'alarme
+            if (alarm.paused) alarm.play();
+          }
+
+          // Stoppe l'alarme si bruit redescend
+          if (percent < ALERT_THRESHOLD && !alarm.paused) {
+            alarm.pause();
+            alarm.currentTime = 0;
+          }
+
+          requestAnimationFrame(checkVolume);
+        }
+        checkVolume();
+      })
+      .catch(err => {
+        statusDiv.textContent = "Erreur : " + err.message;
+      });
+  </script>
+</body>
+</html>
